@@ -6,7 +6,9 @@
         toAddresses: ko.observable(''),
         ccAddresses: ko.observable(''),
         emailSubject: ko.observable(''),
+        from: ko.observable(''),
         sendEmail: function () {
+            var from = this.from();
             var toAddresses = this.toAddresses();
             var ccAddresses = this.ccAddresses();
             var emailSubject = this.emailSubject();
@@ -18,6 +20,7 @@
                     'Authorization': 'Bearer ' + app.dataModel.getAccessToken()
                 },
                 data: {
+                    from: from,
                     toAddresses: toAddresses,
                     ccAddresses: ccAddresses,
                     subject: emailSubject,

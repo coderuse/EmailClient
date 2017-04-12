@@ -4,6 +4,10 @@
     self.userInfoUrl = "/api/Me";
     self.siteUrl = "/";
 
+    self.email = {
+        send: '/api/Email/Send'
+    };
+
     // Route operations
 
     // Other private operations

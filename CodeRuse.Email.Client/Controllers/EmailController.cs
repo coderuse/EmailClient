@@ -1,9 +1,11 @@
 ﻿using CodeRuse.Email.Client.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -26,6 +28,19 @@ namespace CodeRuse.Email.Client.Controllers
         {
             try
             {
+                Chilkat.MailMan mailMan = new Chilkat.MailMan() {
+                    SmtpHost = "smtp.google.com",
+                    SmtpPort = 465,
+                    SmtpSsl = true,
+                    SmtpUsername = "",
+                    SmtpPassword = "",
+                    SmtpAuthMethod = "LOGIN"
+                };
+                Chilkat.Email eml = new Chilkat.Email() {
+                    Body = email.Body,
+                    FromAddress = email.CcAddresses,
+                    
+                };
                 return Ok(new
                 {
                     status = "Success",

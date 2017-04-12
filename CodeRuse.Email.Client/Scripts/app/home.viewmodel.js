@@ -12,20 +12,17 @@
             var emailSubject = this.emailSubject();
             var emailBody = CKEDITOR.instances['email-editor'].getData();
 
-            $.ajax({
-                url: app.dataModel.email.send,
-                type: 'post',
-                contentType: "application/json; charset=utf-8",
+            $.ajax(app.dataModel.email.send, {
+                type: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + app.dataModel.getAccessToken()
                 },
                 data: {
-                    ToAddresses: toAddresses,
-                    CcAddresses: ccAddresses,
-                    Subject: emailSubject,
-                    Body: emailBody
+                    toAddresses: toAddresses,
+                    ccAddresses: ccAddresses,
+                    subject: emailSubject,
+                    body: emailBody
                 },
-                dataType: 'json', 
                 success: function (data) {
                     console.log(data);
                 }

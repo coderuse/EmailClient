@@ -20,27 +20,6 @@ namespace CodeRuse.Email.Client.Controllers
         {
         }
 
-        private static string Rot13(string input)
-        {
-            StringBuilder result = new StringBuilder();
-            Regex regex = new Regex("[A-Za-z]");
-
-            foreach (char c in input)
-            {
-                if (regex.IsMatch(c.ToString()))
-                {
-                    int charCode = ((c & 223) - 52) % 26 + (c & 32) + 65;
-                    result.Append((char)charCode);
-                }
-                else
-                {
-                    result.Append(c);
-                }
-            }
-
-            return result.ToString();
-        }
-
         /// <summary>
         /// Send email, by calling this api from clients
         /// </summary>
@@ -53,12 +32,11 @@ namespace CodeRuse.Email.Client.Controllers
             {
                 Chilkat.MailMan mailMan = new Chilkat.MailMan()
                 {
-                    SmtpHost = "smtp.google.com",
+                    SmtpHost = "",
                     SmtpPort = 465,
                     SmtpSsl = true,
                     SmtpUsername = "",
-                    SmtpPassword = "",
-                    SmtpAuthMethod = "LOGIN"
+                    SmtpPassword = @""
                 };
                 
                 bool success = mailMan.UnlockComponent("30-day trial");
@@ -83,17 +61,19 @@ namespace CodeRuse.Email.Client.Controllers
                         if (!string.IsNullOrEmpty(attr.Name) && attr.Name.ToLower() == "src" &&
                             attr.Value.IndexOf("data:") == 0)
                         {
-                            //var srcValue = attr.Value;
-                            attr.Value = "base.jpg";
+                            File.WriteAllBytes(@"<path>\myCurrentFile.jpg", Convert.FromBase64String(attr.Value.Substring(attr.Value.IndexOf(',') + 1)));
+                            string contentId = eml.AddRelatedFile(@"<path>\myCurrentFile.jpg");
+                            if (eml.LastMethodSuccess != true)
+                            {
+                                Console.WriteLine(eml.LastErrorText);
+                                throw new Exception("Couldn't get the content id...");
+                            }
+                            attr.Value = string.Format("cid:{0}", contentId);
                         }
                     }
                 }
-                //MemoryStream stream = new MemoryStream();
-                var alteredHtml = resultant.ToString();
-                //StreamReader reader = new StreamReader(stream);
-                //alteredHtml = reader.ReadToEnd();
-
-                eml.SetHtmlBody(email.Body);
+                
+                eml.SetHtmlBody(resultant.DocumentNode.InnerHtml);
                 if (string.IsNullOrEmpty(email.ToAddresses)) {
                     throw new Exception("Specify to addresses...");
                 }
@@ -108,9 +88,15 @@ namespace CodeRuse.Email.Client.Controllers
                     }
                 }
                 success = mailMan.SendEmail(eml);
-                if (success != true)
+                if (!success)
                 {
-                    throw new Exception("Could not send the mail...");
+                    throw new Exception("Could not send the mail due to " + mailMan.LastErrorText);
+                }
+
+                success = mailMan.CloseSmtpConnection();
+                if (!success)
+                {
+                    throw new Exception("Connection to SMTP server not closed cleanly.");
                 }
                 else
                 {

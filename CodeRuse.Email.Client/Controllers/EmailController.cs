@@ -1,7 +1,9 @@
-﻿using CodeRuse.Email.Client.Models;
+﻿using CodeRuse.Email.Client.Configuration;
+using CodeRuse.Email.Client.Models;
 using HtmlAgilityPack;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -16,6 +18,8 @@ namespace CodeRuse.Email.Client.Controllers
     [Authorize]
     public class EmailController : ApiController
     {
+        private const string ConfigSectionName = "coderuse";
+
         public EmailController()
         {
         }
@@ -30,13 +34,27 @@ namespace CodeRuse.Email.Client.Controllers
         {
             try
             {
+                SmtpConfigurationElement currentSmtpConf = null;
+                SmtpConfigurationSection configurationSection = (SmtpConfigurationSection)ConfigurationManager.GetSection(ConfigSectionName);
+                if (configurationSection != null && configurationSection.Factories != null)
+                {
+                    foreach (SmtpConfigurationElement factoryConfiguration in configurationSection.Factories)
+                    {
+                        string currentSmtp = System.Configuration.ConfigurationManager.AppSettings["CurrentSmtp"].ToString();
+                        if (factoryConfiguration.Name == currentSmtp)
+                        {
+                            currentSmtpConf = factoryConfiguration;
+                            break;
+                        }
+                    }
+                }
                 Chilkat.MailMan mailMan = new Chilkat.MailMan()
                 {
-                    SmtpHost = "smtp.gmail.com",
-                    SmtpPort = 465,
-                    SmtpSsl = true,
-                    SmtpUsername = "",
-                    SmtpPassword = @""
+                    SmtpHost = currentSmtpConf.SmtpHost,
+                    SmtpPort = currentSmtpConf.SmtpPort,
+                    SmtpSsl = currentSmtpConf.SmtpSsl,
+                    SmtpUsername = currentSmtpConf.SmtpUser,
+                    SmtpPassword = currentSmtpConf.SmtpPass
                 };
 
                 bool success = mailMan.UnlockComponent("30-day trial");
@@ -70,12 +88,11 @@ namespace CodeRuse.Email.Client.Controllers
                                 System.Guid.NewGuid(), DateTime.UtcNow.ToString("yyyy-MM-dd_HH-mm-ss"),
                                 attr.Value.Substring(attr.Value.IndexOf('/') + 1, attr.Value.IndexOf(';') - attr.Value.IndexOf('/') - 1));
 
-                                // Embed the file into mail body
-                                string contentId = msg.AddRelatedData(fileName, Convert.FromBase64String(attr.Value.Substring(attr.Value.IndexOf(',') + 1)));
+                            // Embed the file into mail body
+                            string contentId = msg.AddRelatedData(fileName, Convert.FromBase64String(attr.Value.Substring(attr.Value.IndexOf(',') + 1)));
                             if (msg.LastMethodSuccess != true)
                             {
-                                Console.WriteLine(msg.LastErrorText);
-                                throw new Exception("Couldn't get the content id...");
+                                throw new Exception("Couldn't get the content id: " + msg.LastErrorText);
                             }
                             attr.Value = string.Format("cid:{0}", contentId);
                         }
@@ -85,7 +102,6 @@ namespace CodeRuse.Email.Client.Controllers
                         }
                     }));
                 }
-
                 Task.WaitAll(tasks.ToArray());
 
                 msg.SetHtmlBody(resultant.DocumentNode.InnerHtml);

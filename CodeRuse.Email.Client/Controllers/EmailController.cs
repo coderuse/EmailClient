@@ -28,7 +28,6 @@ namespace CodeRuse.Email.Client.Controllers
         [HttpPost]
         public async Task<IHttpActionResult> Send(EmailModels email)
         {
-            List<string> filePaths = new List<string>();
             try
             {
                 Chilkat.MailMan mailMan = new Chilkat.MailMan()
@@ -67,17 +66,15 @@ namespace CodeRuse.Email.Client.Controllers
                         {
                             tasks.Add(Task.Factory.StartNew(() =>
                             {
-                                string filePath = string.Empty;
+                                string fileName = string.Empty;
                                 try
                                 {
-                                    filePath = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "inline-images", string.Format("img_{0}_{1}.{2}",
+                                    fileName = string.Format("img_{0}_{1}.{2}",
                                         System.Guid.NewGuid(), DateTime.UtcNow.ToString("yyyy-MM-dd_HH-mm-ss"),
-                                        attr.Value.Substring(attr.Value.IndexOf('/') + 1, attr.Value.IndexOf(';') - attr.Value.IndexOf('/') - 1)));
-                                    File.WriteAllBytes(filePath, Convert.FromBase64String(attr.Value.Substring(attr.Value.IndexOf(',') + 1)));
-                                    filePaths.Add(filePath);
+                                        attr.Value.Substring(attr.Value.IndexOf('/') + 1, attr.Value.IndexOf(';') - attr.Value.IndexOf('/') - 1));
 
                                     // Embed the file into mail body
-                                    string contentId = msg.AddRelatedFile(filePath);
+                                    string contentId = msg.AddRelatedData(fileName, Convert.FromBase64String(attr.Value.Substring(attr.Value.IndexOf(',') + 1)));
                                     if (msg.LastMethodSuccess != true)
                                     {
                                         Console.WriteLine(msg.LastErrorText);
@@ -103,13 +100,13 @@ namespace CodeRuse.Email.Client.Controllers
                 }
                 foreach (var toAddress in email.ToAddresses.Split(';'))
                 {
-                    msg.AddTo("Test", toAddress);
+                    msg.AddTo("", toAddress);
                 }
                 if (!string.IsNullOrEmpty(email.CcAddresses))
                 {
                     foreach (var toAddress in email.CcAddresses.Split(';'))
                     {
-                        msg.AddCC("Test", toAddress);
+                        msg.AddCC("", toAddress);
                     }
                 }
                 success = mailMan.SendEmail(msg);
@@ -136,26 +133,6 @@ namespace CodeRuse.Email.Client.Controllers
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
-            }
-            finally
-            {
-                if (filePaths.Count > 0)
-                {
-                    foreach (var filePath in filePaths)
-                    {
-                        try
-                        {
-                            if (File.Exists(filePath))
-                            {
-                                File.Delete(filePath);
-                            }
-                        }
-                        catch (Exception e)
-                        {
-
-                        }
-                    }
-                }
             }
         }
     }

@@ -55,40 +55,35 @@ namespace CodeRuse.Email.Client.Controllers
 
                 List<Task> tasks = new List<Task>();
 
-                List<HtmlNode> images = resultant.DocumentNode.Descendants().Where(x => x.Name == "img").ToList();
+                List<HtmlAttribute> imageAttributes = resultant.DocumentNode.Descendants()
+                    .Where(x => x.Name == "img").SelectMany(i => i.Attributes)
+                    .Where(a => a.Name == "src" && a.Value.IndexOf("data:image/") == 0).ToList();
 
-                foreach (var img in images)
+                foreach (var attr in imageAttributes)
                 {
-                    foreach (var attr in img.Attributes)
+                    tasks.Add(Task.Factory.StartNew(() =>
                     {
-                        if (!string.IsNullOrEmpty(attr.Name) && attr.Name.ToLower() == "src" &&
-                            attr.Value.IndexOf("data:") == 0)
+                        string fileName = string.Empty;
+                        try
                         {
-                            tasks.Add(Task.Factory.StartNew(() =>
-                            {
-                                string fileName = string.Empty;
-                                try
-                                {
-                                    fileName = string.Format("img_{0}_{1}.{2}",
-                                        System.Guid.NewGuid(), DateTime.UtcNow.ToString("yyyy-MM-dd_HH-mm-ss"),
-                                        attr.Value.Substring(attr.Value.IndexOf('/') + 1, attr.Value.IndexOf(';') - attr.Value.IndexOf('/') - 1));
+                            fileName = string.Format("img_{0}_{1}.{2}",
+                                System.Guid.NewGuid(), DateTime.UtcNow.ToString("yyyy-MM-dd_HH-mm-ss"),
+                                attr.Value.Substring(attr.Value.IndexOf('/') + 1, attr.Value.IndexOf(';') - attr.Value.IndexOf('/') - 1));
 
-                                    // Embed the file into mail body
-                                    string contentId = msg.AddRelatedData(fileName, Convert.FromBase64String(attr.Value.Substring(attr.Value.IndexOf(',') + 1)));
-                                    if (msg.LastMethodSuccess != true)
-                                    {
-                                        Console.WriteLine(msg.LastErrorText);
-                                        throw new Exception("Couldn't get the content id...");
-                                    }
-                                    attr.Value = string.Format("cid:{0}", contentId);
-                                }
-                                catch (Exception e)
-                                {
-                                    throw new Exception("Couldn't write the image file: " + e.Message);
-                                }
-                            }));
+                                // Embed the file into mail body
+                                string contentId = msg.AddRelatedData(fileName, Convert.FromBase64String(attr.Value.Substring(attr.Value.IndexOf(',') + 1)));
+                            if (msg.LastMethodSuccess != true)
+                            {
+                                Console.WriteLine(msg.LastErrorText);
+                                throw new Exception("Couldn't get the content id...");
+                            }
+                            attr.Value = string.Format("cid:{0}", contentId);
                         }
-                    }
+                        catch (Exception e)
+                        {
+                            throw new Exception("Couldn't write the image file: " + e.Message);
+                        }
+                    }));
                 }
 
                 Task.WaitAll(tasks.ToArray());
